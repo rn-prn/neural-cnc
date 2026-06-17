@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural-CNC | IA pour Usinage CNC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+        
+        :root {
+            --accent: #22d3ee;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .font-display {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 600;
+        }
+
+        .cnc-canvas {
+            background: #111827;
+            border: 1px solid #334155;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .nav-active {
+            background-color: #1e2937;
+            color: #22d3ee;
+            border-left: 3px solid #22d3ee;
+        }
+
+        .metric-value {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .toolpath {
+            stroke: #22d3ee;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+
+        .section-header {
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+    <!-- TOP BAR -->
+    <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto">
+            <div class="px-6 py-3 flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-x-3">
+                    <div class="w-9 h-9 bg-cyan-500 rounded-xl flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-microchip text-zinc-950 text-2xl"></i>
+                    </div>
+                    <div>
+                        <span class="font-display text-2xl font-semibold tracking-tighter">Neural</span>
+                        <span class="font-display text-2xl font-semibold tracking-tighter text-cyan-400">CNC</span>
+                    </div>
+                    <div class="px-2.5 py-0.5 text-[10px] font-mono bg-zinc-800 text-cyan-400 rounded-full border border-zinc-700">v0.1 • AI</div>
+                </div>
+
+                <!-- Top Navigation -->
+                <div class="flex items-center gap-x-1 bg-zinc-950 rounded-2xl p-1 border border-zinc-800">
+                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2 active" data-tab="dashboard">
+                        <i class="fa-solid fa-tachometer-alt w-4"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('editor')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="editor">
+                        <i class="fa-solid fa-code w-4"></i>
+                        <span>Éditeur G-Code</span>
+                    </button>
+                    <button onclick="switchTab('ai')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="ai">
+                        <i class="fa-solid fa-brain w-4"></i>
+                        <span>Optimiseur IA</span>
+                    </button>
+                    <button onclick="switchTab('monitor')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="monitor">
+                        <i class="fa-solid fa-desktop w-4"></i>
+                        <span>Moniteur Live</span>
+                    </button>
+                </div>
+
+                <!-- Right side controls -->
+                <div class="flex items-center gap-x-4">
+                    <!-- Connection Status -->
+                    <div class="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-900 rounded-2xl border border-zinc-700">
+                        <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                        <span class="text-sm font-medium">Machine connectée</span>
+                        <span class="font-mono text-xs text-emerald-400">• 192.168.1.42</span>
+                    </div>
+
+                    <!-- User -->
+                    <div class="flex items-center gap-x-2">
+                        <div class="text-right">
+                            <div class="text-sm font-medium">Ronan P.</div>
+                            <div class="text-[10px] text-zinc-500">Opérateur Senior</div>
+                        </div>
+                        <img src="https://i.pravatar.cc/32?img=68" class="w-8 h-8 rounded-full ring-2 ring-zinc-700" alt="Avatar">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-screen-2xl mx-auto flex">
+        <!-- SIDEBAR -->
+        <div class="w-72 bg-zinc-900 border-r border-zinc-800 min-h-[calc(100vh-57px)] p-4 flex flex-col">
+            <div class="px-3 py-2">
+                <div class="section-header mb-3 px-3">Navigation</div>
+                
+                <div class="space-y-1">
+                    <a href="#" onclick="switchTab('dashboard')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors nav-active" data-sidebar="dashboard">
+                        <i class="fa-solid fa-home w-5 text-center"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" onclick="switchTab('editor')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="editor">
+                        <i class="fa-solid fa-file-code w-5 text-center"></i>
+                        <span>Éditeur G-Code</span>
+                    </a>
+                    <a href="#" onclick="switchTab('ai')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="ai">
+                        <i class="fa-solid fa-magic w-5 text-center"></i>
+                        <span>Optimiseur IA</span>
+                    </a>
+                    <a href="#" onclick="switchTab('monitor')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="monitor">
+                        <i class="fa-solid fa-chart-line w-5 text-center"></i>
+                        <span>Moniteur Live</span>
+                    </a>
+                </div>
+
+                <div class="mt-8">
+                    <div class="section-header mb-3 px-3">Outils & Ressources</div>
+                    <div class="space-y-1 text-sm">
+                        <a href="#" class="flex items-center gap-x-3 px-3 py-2 rounded-2xl hover:bg-zinc-800 transition-colors">
+                            <i class="fa-solid fa-tools w-5 text-center text-zinc-400"></i>
+                            <span>Bibliothèque d'outils</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-x-3 px-3 py-2 rounded-2xl hover:bg-zinc-800 transition-colors">
+                            <i class="fa-solid fa-history w-5 text-center text-zinc-400"></i>
+                            <span>Historique usinages</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-x-3 px-3 py-2 rounded-2xl hover:bg-zinc-800 transition-colors">
+                            <i class="fa-solid fa-cog w-5 text-center text-zinc-400"></i>
+                            <span>Paramètres machine</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Machine Status in Sidebar -->
+            <div class="mt-auto px-3 pt-6 border-t border-zinc-800">
+                <div class="bg-zinc-950 rounded-2xl p-4 border border-zinc-800">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="font-semibold text-sm">État Machine</div>
+                        <div class="px-2 py-0.5 text-[10px] bg-emerald-900 text-emerald-400 rounded-full font-medium">EN LIGNE</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <div>
+                            <div class="text-[10px] text-zinc-500">Position X</div>
+                            <div class="font-mono text-lg font-semibold metric-value">124.8</div>
+                            <div class="text-[10px] text-emerald-400">mm</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-zinc-500">Y</div>
+                            <div class="font-mono text-lg font-semibold metric-value">87.3</div>
+                            <div class="text-[10px] text-emerald-400">mm</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-zinc-500">Z</div>
+                            <div class="font-mono text-lg font-semibold metric-value">12.1</div>
+                            <div class="text-[10px] text-emerald-400">mm</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-zinc-800 flex justify-between text-xs">
+                        <div>
+                            <span class="text-zinc-500">Vitesse:</span> <span class="font-mono">2450</span> <span class="text-zinc-500">RPM</span>
+                        </div>
+                        <div class="text-emerald-400">
+                            <i class="fa-solid fa-check"></i> Prêt
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 p-6 overflow-auto" style="max-height: calc(100vh - 57px);">
+            
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="tab-content">
+                <div class="flex items-end justify-between mb-6">
+                    <div>
+                        <h1 class="font-display text-3xl tracking-tighter">Dashboard</h1>
+                        <p class="text-zinc-400">Vue d'ensemble • 17 juin 2026</p>
+                    </div>
+                    <div class="flex items-center gap-x-3">
+                        <button onclick="simulateRun()" 
+                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 transition-colors text-sm font-semibold rounded-2xl flex items-center gap-x-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Démarrer usinage</span>
+                        </button>
+                        <button class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm font-semibold rounded-2xl flex items-center gap-x-2 border border-zinc-700">
+                            <i class="fa-solid fa-pause"></i>
+                            <span>Pause</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="text-xs text-zinc-500">PIÈCES USINÉES AUJOURD'HUI</div>
+                                <div class="text-4xl font-semibold mt-1 tracking-tighter">47</div>
+                            </div>
+                            <i class="fa-solid fa-industry text-3xl text-zinc-700"></i>
+                        </div>
+                        <div class="mt-4 text-emerald-400 text-sm flex items-center gap-x-1">
+                            <i class="fa-solid fa-arrow-trend-up"></i> <span>+12 depuis hier</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="text-xs text-zinc-500">TEMPS MOYEN / PIÈCE</div>
+                                <div class="text-4xl font-semibold mt-1 tracking-tighter">18m <span class="text-xl font-normal text-zinc-400">42s</span></div>
+                            </div>
+                            <i class="fa-solid fa-clock text-3xl text-zinc-700"></i>
+                        </div>
+                        <div class="mt-4 text-emerald-400 text-sm">-3m 12s grâce à l'IA</div>
+                    </div>
+
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="text-xs text-zinc-500">PRÉCISION IA</div>
+                                <div class="text-4xl font-semibold mt-1 tracking-tighter">99.4<span class="text-xl font-normal text-zinc-400">%</span></div>
+                            </div>
+                            <i class="fa-solid fa-brain text-3xl text-cyan-400"></i>
+                        </div>
+                        <div class="mt-4 text-xs text-zinc-400">Sur les 47 dernières pièces</div>
+                    </div>
+
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="text-xs text-zinc-500">ÉCONOMIE MATÉRIAU</div>
+                                <div class="text-4xl font-semibold mt-1 tracking-tighter">23<span class="text-xl font-normal text-zinc-400">%</span></div>
+                            </div>
+                            <i class="fa-solid fa-recycle text-3xl text-emerald-400"></i>
+                        </div>
+                        <div class="mt-4 text-emerald-400 text-sm">Grâce à l'optimisation neurale</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Recent Jobs -->
+                    <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="font-semibold">Usinages récents</div>
+                            <button class="text-sm text-cyan-400 hover:underline">Voir tout →</button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-zinc-950 rounded-2xl">
+                                <div class="flex items-center gap-x-4">
+                                    <div class="w-9 h-9 bg-zinc-800 rounded-xl flex items-center justify-center">
+                                        <i class="fa-solid fa-cube"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">Support moteur - Lot #A472</div>
+                                        <div class="text-xs text-zinc-500">Aluminium 6061 • 12 pièces</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-emerald-400 text-sm">Terminé</div>
+                                    <div class="font-mono text-xs text-zinc-400">14:22</div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between p-3 bg-zinc-950 rounded-2xl">
+                                <div class="flex items-center gap-x-4">
+                                    <div class="w-9 h-9 bg-zinc-800 rounded-xl flex items-center justify-center">
+                                        <i class="fa-solid fa-cube"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">Plaque de fixation - Lot #B219</div>
+                                        <div class="text-xs text-zinc-500">Inox 316 • 8 pièces</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-amber-400 text-sm">En cours</div>
+                                    <div class="font-mono text-xs text-zinc-400">89% • 3m restant</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                        <div class="font-semibold mb-4 flex items-center gap-x-2">
+                            <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                            <span>Insights IA du jour</span>
+                        </div>
+                        <div class="text-sm space-y-3 text-zinc-300">
+                            <div class="flex gap-x-2">
+                                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                                <span>Optimisation du parcours a réduit le temps de cycle de <strong>18%</strong></span>
+                            </div>
+                            <div class="flex gap-x-2">
+                                <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
+                                <span>Détection de 2 zones à risque d'usure outil</span>
+                            </div>
+                            <div class="flex gap-x-2">
+                                <i class="fa-solid fa-arrow-right text-cyan-400 mt-1"></i>
+                                <span>Suggestion : Augmenter feed rate sur passe finale</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- G-CODE EDITOR TAB -->
+            <div id="tab-editor" class="tab-content hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="font-display text-3xl tracking-tighter">Éditeur G-Code</h1>
+                        <p class="text-zinc-400">Édition manuelle ou import de fichier</p>
+                    </div>
+                    <div class="flex gap-x-3">
+                        <button onclick="loadSampleGCode()" class="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 rounded-2xl flex items-center gap-x-2 border border-zinc-700">
+                            <i class="fa-solid fa-upload"></i>
+                            <span>Charger exemple</span>
+                        </button>
+                        <button class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold rounded-2xl flex items-center gap-x-2">
+                            <i class="fa-solid fa-save"></i>
+                            <span>Enregistrer</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <!-- Code Editor -->
+                    <div class="lg:col-span-3 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+                        <div class="px-5 py-3 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
+                            <div class="font-mono text-sm">part_v2.gcode</div>
+                            <div class="text-xs px-2 py-px bg-zinc-800 rounded">142 lignes</div>
+                        </div>
+                        <textarea id="gcode-editor" class="w-full h-[420px] bg-zinc-950 font-mono text-sm p-5 resize-y focus:outline-none" spellcheck="false">G21 ; Unités en mm
+G90 ; Position absolue
+G00 X0 Y0 Z5 ; Déplacement rapide
+G01 Z-2 F300 ; Plongée
+G01 X50 Y0 F800
+G01 X50 Y50
+G01 X0 Y50
+G01 X0 Y0
+G00 Z5
+M30 ; Fin de programme</textarea>
+                    </div>
+
+                    <!-- Preview -->
+                    <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                        <div class="font-semibold mb-4">Aperçu du parcours</div>
+                        <div class="cnc-canvas rounded-2xl p-4 h-[380px] flex items-center justify-center relative overflow-hidden">
+                            <svg id="gcode-preview" width="100%" height="100%" viewBox="0 0 300 300" class="max-w-[280px]">
+                                <!-- Toolpath will be drawn by JS -->
+                            </svg>
+                            <div class="absolute bottom-4 right-4 text-xs bg-black/60 px-2 py-px rounded">Vue 2D</div>
+                        </div>
+                        <div class="flex justify-between text-xs mt-4 text-zinc-400">
+                            <div>Longueur totale : <span class="font-mono text-white">184.6 mm</span></div>
+                            <div>Temps estimé : <span class="font-mono text-white">4m 12s</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI OPTIMIZER TAB -->
+            <div id="tab-ai" class="tab-content hidden">
+                <div class="max-w-3xl">
+                    <h1 class="font-display text-3xl tracking-tighter mb-2">Optimiseur IA</h1>
+                    <p class="text-zinc-400 mb-8">Décrivez la pièce ou chargez un G-Code. L'IA neurale va optimiser le parcours, réduire le temps et minimiser l'usure.</p>
+
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+                        <div class="mb-6">
+                            <label class="block text-sm mb-2 text-zinc-400">Description de la pièce ou objectif</label>
+                            <textarea id="ai-prompt" rows="3" class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl p-4 text-sm focus:outline-none focus:border-cyan-500" placeholder="Ex: Usiner une plaque de fixation en inox avec 4 trous M6 et un contour extérieur précis. Minimiser le temps tout en gardant une finition de surface Ra 1.6."></textarea>
+                        </div>
+
+                        <div class="flex items-center gap-x-4">
+                            <button onclick="runAIOptimization()" 
+                                    class="flex-1 py-3.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:brightness-110 transition-all text-white font-semibold rounded-2xl flex items-center justify-center gap-x-3">
+                                <i class="fa-solid fa-magic"></i>
+                                <span>Optimiser avec l'IA</span>
+                            </button>
+                            
+                            <button onclick="uploadGCodeForAI()" class="px-8 py-3.5 bg-zinc-800 hover:bg-zinc-700 rounded-2xl border border-zinc-700 flex items-center gap-x-2">
+                                <i class="fa-solid fa-upload"></i>
+                                <span>Charger G-Code existant</span>
+                            </button>
+                        </div>
+
+                        <div id="ai-results" class="hidden mt-8 pt-8 border-t border-zinc-800">
+                            <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
+                                <i class="fa-solid fa-check-double"></i>
+                                <span>Résultats de l'optimisation</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-zinc-950 p-4 rounded-2xl">
+                                    <div class="text-xs text-zinc-500">TEMPS RÉDUIT</div>
+                                    <div class="text-3xl font-semibold text-emerald-400">-22%</div>
+                                </div>
+                                <div class="bg-zinc-950 p-4 rounded-2xl">
+                                    <div class="text-xs text-zinc-500">MATÉRIAU ÉCONOMISÉ</div>
+                                    <div class="text-3xl font-semibold text-emerald-400">-31%</div>
+                                </div>
+                                <div class="bg-zinc-950 p-4 rounded-2xl">
+                                    <div class="text-xs text-zinc-500">PRÉCISION</div>
+                                    <div class="text-3xl font-semibold">99.7%</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <button onclick="applyOptimizedPath()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-2xl font-semibold flex items-center justify-center gap-x-2">
+                                    <i class="fa-solid fa-check"></i>
+                                    <span>Appliquer le parcours optimisé</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE MONITOR TAB -->
+            <div id="tab-monitor" class="tab-content hidden">
+                <h1 class="font-display text-3xl tracking-tighter mb-6">Moniteur Live</h1>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <!-- Live Viewer -->
+                    <div class="lg:col-span-3 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                        <div class="flex justify-between mb-4">
+                            <div class="font-semibold">Visualisation en temps réel</div>
+                            <div class="flex items-center text-emerald-400 text-sm">
+                                <i class="fa-solid fa-circle fa-beat mr-2"></i> En cours
+                            </div>
+                        </div>
+                        
+                        <div class="cnc-canvas rounded-2xl h-[380px] relative flex items-center justify-center">
+                            <canvas id="live-canvas" width="520" height="380" class="rounded-2xl"></canvas>
+                            <div class="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-xl text-xs font-mono">X: <span id="live-x">124.8</span> • Y: <span id="live-y">87.3</span> • Z: <span id="live-z">12.1</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Live Metrics -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                            <div class="font-semibold mb-4">Paramètres actuels</div>
+                            
+                            <div class="space-y-5">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1.5">
+                                        <span>Vitesse de broche</span>
+                                        <span class="font-mono">2450 <span class="text-xs text-zinc-400">RPM</span></span>
+                                    </div>
+                                    <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div class="h-2 bg-cyan-400 w-[78%] rounded-full"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1.5">
+                                        <span>Avance (Feed rate)</span>
+                                        <span class="font-mono">850 <span class="text-xs text-zinc-400">mm/min</span></span>
+                                    </div>
+                                    <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div class="h-2 bg-cyan-400 w-[65%] rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+                            <div class="font-semibold mb-4">Logs IA</div>
+                            <div class="font-mono text-xs bg-zinc-950 p-4 rounded-2xl h-48 overflow-auto text-emerald-300 space-y-1" id="ai-logs">
+                                <div>[14:28:11] Optimisation terminée</div>
+                                <div>[14:28:09] Prédiction usure outil: faible</div>
+                                <div>[14:27:55] Ajustement feed rate +12%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Tailwind script
+        function initializeTailwind() {
+            document.documentElement.style.setProperty('--accent', '#22d3ee');
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Show selected
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-link').forEach(el => {
+                el.classList.remove('nav-active');
+                if (el.getAttribute('data-sidebar') === tab) {
+                    el.classList.add('nav-active');
+                }
+            });
+
+            // Update top nav active
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active', 'bg-zinc-800');
+                if (el.getAttribute('data-tab') === tab) {
+                    el.classList.add('active', 'bg-zinc-800');
+                }
+            });
+
+            // Special init for live monitor
+            if (tab === 'monitor') {
+                setTimeout(initLiveCanvas, 100);
+            }
+        }
+
+        // Simple G-Code preview (SVG)
+        function drawGCodePreview() {
+            const svg = document.getElementById('gcode-preview');
+            if (!svg) return;
+            
+            svg.innerHTML = '';
+            
+            // Simple rectangle toolpath
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute('d', 'M 50 50 L 250 50 L 250 250 L 50 250 L 50 50');
+            path.setAttribute('class', 'toolpath');
+            path.setAttribute('stroke', '#22d3ee');
+            path.setAttribute('stroke-width', '3');
+            
+            // Add some inner paths
+            const path2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path2.setAttribute('d', 'M 80 80 L 220 80 L 220 220 L 80 220 L 80 80');
+            path2.setAttribute('class', 'toolpath');
+            path2.setAttribute('stroke', '#67e8f9');
+            path2.setAttribute('stroke-width', '2');
+            path2.setAttribute('stroke-dasharray', '4 3');
+            
+            svg.appendChild(path);
+            svg.appendChild(path2);
+
+            // Add start/end points
+            const start = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            start.setAttribute('cx', '50');
+            start.setAttribute('cy', '50');
+            start.setAttribute('r', '5');
+            start.setAttribute('fill', '#22d3ee');
+            svg.appendChild(start);
+        }
+
+        function loadSampleGCode() {
+            const editor = document.getElementById('gcode-editor');
+            editor.value = `G21
+G90
+G00 X0 Y0 Z10
+G01 Z-3 F200
+G01 X120 Y0 F1200
+G01 X120 Y80
+G01 X0 Y80
+G01 X0 Y0
+G00 Z10
+G01 Z-3 F200
+G01 X40 Y20
+G01 X80 Y20
+G01 X80 Y60
+G01 X40 Y60
+G01 X40 Y20
+G00 Z10
+M30`;
+            drawGCodePreview();
+        }
+
+        // AI Optimization simulation
+        function runAIOptimization() {
+            const prompt = document.getElementById('ai-prompt').value || "Pièce standard avec optimisation neurale";
+            const results = document.getElementById('ai-results');
+            
+            results.classList.remove('hidden');
+            results.scrollIntoView({ behavior: 'smooth' });
+            
+            // Fake loading effect
+            results.innerHTML = `
+                <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <span>Analyse en cours par le modèle neuronal...</span>
+                </div>
+            `;
+
+            setTimeout(() => {
+                results.innerHTML = `
+                    <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span>Résultats de l'optimisation IA</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-zinc-950 p-4 rounded-2xl">
+                            <div class="text-xs text-zinc-500">TEMPS RÉDUIT</div>
+                            <div class="text-3xl font-semibold text-emerald-400">-22%</div>
+                        </div>
+                        <div class="bg-zinc-950 p-4 rounded-2xl">
+                            <div class="text-xs text-zinc-500">MATÉRIAU ÉCONOMISÉ</div>
+                            <div class="text-3xl font-semibold text-emerald-400">-31%</div>
+                        </div>
+                        <div class="bg-zinc-950 p-4 rounded-2xl">
+                            <div class="text-xs text-zinc-500">PRÉCISION</div>
+                            <div class="text-3xl font-semibold">99.7%</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-zinc-950 p-4 rounded-2xl text-sm mb-6">
+                        <strong>Recommandation IA :</strong> Le modèle a détecté un parcours optimal avec 3 passes de finition et réduction des déplacements rapides. Gain estimé : 4 minutes 18 secondes.
+                    </div>
+
+                    <button onclick="applyOptimizedPath()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-2xl font-semibold flex items-center justify-center gap-x-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Appliquer le parcours optimisé au G-Code</span>
+                    </button>
+                `;
+            }, 1650);
+        }
+
+        function applyOptimizedPath() {
+            alert('Parcours optimisé appliqué avec succès ! Le G-Code a été mis à jour dans l\'éditeur.');
+            // Switch to editor and update
+            switchTab('editor');
+            setTimeout(() => {
+                const editor = document.getElementById('gcode-editor');
+                editor.value = editor.value + `
+
+; === OPTIMISÉ PAR IA NEURALE ===
+; Temps réduit de 22% | Matériau économisé 31%
+G01 X50 Y50 F950 ; Ajustement IA
+`;
+                drawGCodePreview();
+            }, 600);
+        }
+
+        function uploadGCodeForAI() {
+            alert('Fonctionnalité d\'upload de G-Code pour optimisation IA activée. (Simulation)');
+            switchTab('editor');
+        }
+
+        // Live canvas simulation
+        let liveInterval;
+        function initLiveCanvas() {
+            const canvas = document.getElementById('live-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#111827';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Tool head
+            let x = 180;
+            let y = 140;
+            let direction = 1;
+
+            if (liveInterval) clearInterval(liveInterval);
+
+            liveInterval = setInterval(() => {
+                ctx.fillStyle = '#111827';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Redraw grid
+                ctx.strokeStyle = '#334155';
+                for (let gx = 0; gx < canvas.width; gx += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(gx, 0);
+                    ctx.lineTo(gx, canvas.height);
+                    ctx.stroke();
+                }
+                for (let gy = 0; gy < canvas.height; gy += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, gy);
+                    ctx.lineTo(canvas.width, gy);
+                    ctx.stroke();
+                }
+
+                // Draw toolpath trail
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(120, 120);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+
+                // Tool head
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#67e8f9';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Update position display
+                document.getElementById('live-x').innerText = (x / 3.2).toFixed(1);
+                document.getElementById('live-y').innerText = (y / 3.2).toFixed(1);
+                document.getElementById('live-z').innerText = (12 + Math.sin(Date.now()/800) * 1.5).toFixed(1);
+
+                // Move
+                x += direction * 1.8;
+                if (x > 380) {
+                    x = 380;
+                    direction = -1;
+                }
+                if (x < 140) {
+                    x = 140;
+                    direction = 1;
+                }
+
+                // Random small Y variation
+                y += (Math.random() - 0.5) * 1.2;
+                y = Math.max(80, Math.min(y, 280));
+            }, 80);
+        }
+
+        function simulateRun() {
+            const btns = document.querySelectorAll('button');
+            alert('Simulation d\'usinage démarrée. Passage en mode Moniteur Live...');
+            switchTab('monitor');
+            setTimeout(() => {
+                const logs = document.getElementById('ai-logs');
+                if (logs) {
+                    logs.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Usinage démarré par IA</div>`;
+                }
+            }, 800);
+        }
+
+        // Initialize everything
+        function initApp() {
+            initializeTailwind();
+            
+            // Initial active tab
+            document.getElementById('tab-dashboard').classList.remove('hidden');
+            
+            // Initial sidebar active
+            const firstSidebar = document.querySelector('.sidebar-link');
+            if (firstSidebar) firstSidebar.classList.add('nav-active');
+
+            // Draw initial G-Code preview
+            setTimeout(() => {
+                drawGCodePreview();
+            }, 300);
+
+            // Keyboard shortcuts hint
+            console.log('%c[Neural-CNC] Interface IA CNC initialisée. Raccourcis : Ctrl+K pour recherche, etc.', 'color:#64748b');
+
+            // Demo: Auto update some metrics (optional)
+            setInterval(() => {
+                const metrics = document.querySelectorAll('.metric-value');
+                if (metrics.length > 0 && !document.getElementById('tab-monitor').classList.contains('hidden')) {
+                    // Could add live updates here
+                }
+            }, 5000);
+        }
+
+        // Boot
+        window.onload = initApp;
+    </script>
+</body>
+</html>
