@@ -9,10 +9,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
         
-        :root {
-            --accent: #22d3ee;
-        }
-        
         body {
             font-family: 'Inter', system_ui, sans-serif;
         }
@@ -23,9 +19,10 @@
         }
 
         .cnc-canvas {
-            background: #111827;
+            background: #0f172a;
             border: 1px solid #334155;
-            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.7);
+            cursor: crosshair;
         }
 
         .nav-active {
@@ -38,14 +35,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .toolpath {
-            stroke: #22d3ee;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
-        }
-
         .section-header {
             font-size: 0.75rem;
             letter-spacing: 0.05em;
@@ -54,9 +43,46 @@
             color: #64748b;
         }
 
-        .glass {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(12px);
+        .tool-btn {
+            transition: all 0.1s ease;
+        }
+        .tool-btn.active {
+            background-color: #22d3ee;
+            color: #0f172a;
+            border-color: #22d3ee;
+        }
+
+        .sketch-grid {
+            background-image: 
+                linear-gradient(#334155 1px, transparent 1px),
+                linear-gradient(90deg, #334155 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0;
+        }
+
+        .dimension-line {
+            stroke: #f59e0b;
+            stroke-width: 1.5;
+            stroke-dasharray: 4 2;
+        }
+
+        .shape-plein {
+            fill: #1e40af;
+            fill-opacity: 0.15;
+            stroke: #3b82f6;
+            stroke-width: 2;
+        }
+
+        .shape-creuse {
+            fill: #9f1239;
+            fill-opacity: 0.15;
+            stroke: #e11d48;
+            stroke-width: 2;
+            stroke-dasharray: 6 3;
+        }
+
+        .sketch-container {
+            position: relative;
         }
     </style>
 </head>
@@ -65,7 +91,6 @@
     <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
         <div class="max-w-screen-2xl mx-auto">
             <div class="px-6 py-3 flex items-center justify-between">
-                <!-- Logo -->
                 <div class="flex items-center gap-x-3">
                     <div class="w-9 h-9 bg-cyan-500 rounded-xl flex items-center justify-center shadow-inner">
                         <i class="fa-solid fa-microchip text-zinc-950 text-2xl"></i>
@@ -74,18 +99,17 @@
                         <span class="font-display text-2xl font-semibold tracking-tighter">Neural</span>
                         <span class="font-display text-2xl font-semibold tracking-tighter text-cyan-400">CNC</span>
                     </div>
-                    <div class="px-2.5 py-0.5 text-[10px] font-mono bg-zinc-800 text-cyan-400 rounded-full border border-zinc-700">v0.1 • AI</div>
+                    <div class="px-2.5 py-0.5 text-[10px] font-mono bg-zinc-800 text-cyan-400 rounded-full border border-zinc-700">v0.2 • IA Sketch</div>
                 </div>
 
-                <!-- Top Navigation -->
                 <div class="flex items-center gap-x-1 bg-zinc-950 rounded-2xl p-1 border border-zinc-800">
-                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2 active" data-tab="dashboard">
+                    <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="dashboard">
                         <i class="fa-solid fa-tachometer-alt w-4"></i>
                         <span>Dashboard</span>
                     </button>
-                    <button onclick="switchTab('editor')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="editor">
-                        <i class="fa-solid fa-code w-4"></i>
-                        <span>Éditeur G-Code</span>
+                    <button onclick="switchTab('editor')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2 active bg-zinc-800" data-tab="editor">
+                        <i class="fa-solid fa-drafting-compass w-4"></i>
+                        <span>Éditeur Pièce</span>
                     </button>
                     <button onclick="switchTab('ai')" class="tab-btn px-4 py-1.5 text-sm font-medium rounded-xl flex items-center gap-x-2" data-tab="ai">
                         <i class="fa-solid fa-brain w-4"></i>
@@ -97,16 +121,12 @@
                     </button>
                 </div>
 
-                <!-- Right side controls -->
                 <div class="flex items-center gap-x-4">
-                    <!-- Connection Status -->
                     <div class="flex items-center gap-x-2 px-3 py-1.5 bg-zinc-900 rounded-2xl border border-zinc-700">
                         <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse"></div>
                         <span class="text-sm font-medium">Machine connectée</span>
-                        <span class="font-mono text-xs text-emerald-400">• 192.168.1.42</span>
                     </div>
 
-                    <!-- User -->
                     <div class="flex items-center gap-x-2">
                         <div class="text-right">
                             <div class="text-sm font-medium">Ronan P.</div>
@@ -126,13 +146,13 @@
                 <div class="section-header mb-3 px-3">Navigation</div>
                 
                 <div class="space-y-1">
-                    <a href="#" onclick="switchTab('dashboard')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors nav-active" data-sidebar="dashboard">
+                    <a href="#" onclick="switchTab('dashboard')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="dashboard">
                         <i class="fa-solid fa-home w-5 text-center"></i>
                         <span>Dashboard</span>
                     </a>
-                    <a href="#" onclick="switchTab('editor')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="editor">
-                        <i class="fa-solid fa-file-code w-5 text-center"></i>
-                        <span>Éditeur G-Code</span>
+                    <a href="#" onclick="switchTab('editor')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors nav-active" data-sidebar="editor">
+                        <i class="fa-solid fa-drafting-compass w-5 text-center"></i>
+                        <span>Éditeur Pièce</span>
                     </a>
                     <a href="#" onclick="switchTab('ai')" class="sidebar-link flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm hover:bg-zinc-800 transition-colors" data-sidebar="ai">
                         <i class="fa-solid fa-magic w-5 text-center"></i>
@@ -155,15 +175,10 @@
                             <i class="fa-solid fa-history w-5 text-center text-zinc-400"></i>
                             <span>Historique usinages</span>
                         </a>
-                        <a href="#" class="flex items-center gap-x-3 px-3 py-2 rounded-2xl hover:bg-zinc-800 transition-colors">
-                            <i class="fa-solid fa-cog w-5 text-center text-zinc-400"></i>
-                            <span>Paramètres machine</span>
-                        </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Machine Status in Sidebar -->
             <div class="mt-auto px-3 pt-6 border-t border-zinc-800">
                 <div class="bg-zinc-950 rounded-2xl p-4 border border-zinc-800">
                     <div class="flex justify-between items-center mb-3">
@@ -201,30 +216,24 @@
             </div>
         </div>
 
-        <!-- MAIN CONTENT AREA -->
+        <!-- MAIN CONTENT -->
         <div class="flex-1 p-6 overflow-auto" style="max-height: calc(100vh - 57px);">
             
             <!-- DASHBOARD TAB -->
-            <div id="tab-dashboard" class="tab-content">
+            <div id="tab-dashboard" class="tab-content hidden">
                 <div class="flex items-end justify-between mb-6">
                     <div>
                         <h1 class="font-display text-3xl tracking-tighter">Dashboard</h1>
                         <p class="text-zinc-400">Vue d'ensemble • 17 juin 2026</p>
                     </div>
                     <div class="flex items-center gap-x-3">
-                        <button onclick="simulateRun()" 
-                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 transition-colors text-sm font-semibold rounded-2xl flex items-center gap-x-2">
+                        <button onclick="simulateRun()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 transition-colors text-sm font-semibold rounded-2xl flex items-center gap-x-2">
                             <i class="fa-solid fa-play"></i>
                             <span>Démarrer usinage</span>
-                        </button>
-                        <button class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm font-semibold rounded-2xl flex items-center gap-x-2 border border-zinc-700">
-                            <i class="fa-solid fa-pause"></i>
-                            <span>Pause</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- KPI Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
                         <div class="flex justify-between">
@@ -274,13 +283,11 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Recent Jobs -->
                     <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
                         <div class="flex justify-between items-center mb-4">
                             <div class="font-semibold">Usinages récents</div>
                             <button class="text-sm text-cyan-400 hover:underline">Voir tout →</button>
                         </div>
-                        
                         <div class="space-y-3">
                             <div class="flex items-center justify-between p-3 bg-zinc-950 rounded-2xl">
                                 <div class="flex items-center gap-x-4">
@@ -297,7 +304,6 @@
                                     <div class="font-mono text-xs text-zinc-400">14:22</div>
                                 </div>
                             </div>
-
                             <div class="flex items-center justify-between p-3 bg-zinc-950 rounded-2xl">
                                 <div class="flex items-center gap-x-4">
                                     <div class="w-9 h-9 bg-zinc-800 rounded-xl flex items-center justify-center">
@@ -316,7 +322,6 @@
                         </div>
                     </div>
 
-                    <!-- AI Insights -->
                     <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
                         <div class="font-semibold mb-4 flex items-center gap-x-2">
                             <i class="fa-solid fa-lightbulb text-amber-400"></i>
@@ -331,67 +336,128 @@
                                 <i class="fa-solid fa-check text-emerald-400 mt-1"></i>
                                 <span>Détection de 2 zones à risque d'usure outil</span>
                             </div>
-                            <div class="flex gap-x-2">
-                                <i class="fa-solid fa-arrow-right text-cyan-400 mt-1"></i>
-                                <span>Suggestion : Augmenter feed rate sur passe finale</span>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- G-CODE EDITOR TAB -->
-            <div id="tab-editor" class="tab-content hidden">
-                <div class="flex items-center justify-between mb-6">
+            <!-- ÉDITEUR PIÈCE (NOUVEAU SKETCHER INTERACTIF) -->
+            <div id="tab-editor" class="tab-content">
+                <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h1 class="font-display text-3xl tracking-tighter">Éditeur G-Code</h1>
-                        <p class="text-zinc-400">Édition manuelle ou import de fichier</p>
+                        <h1 class="font-display text-3xl tracking-tighter">Éditeur de Pièce Mécanique</h1>
+                        <p class="text-zinc-400">Dessinez votre pièce • Ajoutez cotes, chanfreins, rayons • Définissez zones pleines / creuses</p>
                     </div>
                     <div class="flex gap-x-3">
-                        <button onclick="loadSampleGCode()" class="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 rounded-2xl flex items-center gap-x-2 border border-zinc-700">
-                            <i class="fa-solid fa-upload"></i>
-                            <span>Charger exemple</span>
+                        <button onclick="clearSketch()" class="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 rounded-2xl flex items-center gap-x-2 border border-zinc-700">
+                            <i class="fa-solid fa-trash"></i>
+                            <span>Effacer</span>
                         </button>
-                        <button class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold rounded-2xl flex items-center gap-x-2">
-                            <i class="fa-solid fa-save"></i>
-                            <span>Enregistrer</span>
+                        <button onclick="generateGCodeFromSketch()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold rounded-2xl flex items-center gap-x-2">
+                            <i class="fa-solid fa-magic"></i>
+                            <span>Générer G-Code</span>
                         </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <!-- Code Editor -->
-                    <div class="lg:col-span-3 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-                        <div class="px-5 py-3 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between">
-                            <div class="font-mono text-sm">part_v2.gcode</div>
-                            <div class="text-xs px-2 py-px bg-zinc-800 rounded">142 lignes</div>
+                <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                    <!-- TOOLBAR -->
+                    <div class="xl:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
+                        <div class="section-header mb-3 px-2">Outils de dessin</div>
+                        
+                        <div class="space-y-2">
+                            <button onclick="setTool('select')" id="tool-select" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800 active">
+                                <i class="fa-solid fa-mouse-pointer w-5"></i>
+                                <span>Sélection</span>
+                            </button>
+                            
+                            <button onclick="setTool('rectangle')" id="tool-rectangle" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800">
+                                <i class="fa-solid fa-square w-5"></i>
+                                <span>Rectangle</span>
+                            </button>
+                            
+                            <button onclick="setTool('circle')" id="tool-circle" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800">
+                                <i class="fa-solid fa-circle w-5"></i>
+                                <span>Cercle</span>
+                            </button>
+                            
+                            <button onclick="setTool('chamfer')" id="tool-chamfer" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800">
+                                <i class="fa-solid fa-cut w-5"></i>
+                                <span>Chanfrein</span>
+                            </button>
+                            
+                            <button onclick="setTool('radius')" id="tool-radius" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800">
+                                <i class="fa-solid fa-compass-drafting w-5"></i>
+                                <span>Rayon (Fillet)</span>
+                            </button>
+                            
+                            <button onclick="setTool('dimension')" id="tool-dimension" class="tool-btn w-full flex items-center gap-x-3 px-3 py-2.5 rounded-2xl text-sm border border-zinc-700 hover:bg-zinc-800">
+                                <i class="fa-solid fa-ruler w-5"></i>
+                                <span>Cote</span>
+                            </button>
                         </div>
-                        <textarea id="gcode-editor" class="w-full h-[420px] bg-zinc-950 font-mono text-sm p-5 resize-y focus:outline-none" spellcheck="false">G21 ; Unités en mm
-G90 ; Position absolue
-G00 X0 Y0 Z5 ; Déplacement rapide
-G01 Z-2 F300 ; Plongée
-G01 X50 Y0 F800
-G01 X50 Y50
-G01 X0 Y50
-G01 X0 Y0
-G00 Z5
-M30 ; Fin de programme</textarea>
+
+                        <div class="mt-6 pt-4 border-t border-zinc-800">
+                            <div class="section-header mb-3 px-2">Type de zone</div>
+                            <div class="flex gap-x-2">
+                                <button onclick="setZoneType('plein')" id="zone-plein" class="flex-1 py-2 text-sm rounded-2xl border border-blue-500 bg-blue-950 text-blue-400 font-medium">Pleine</button>
+                                <button onclick="setZoneType('creuse')" id="zone-creuse" class="flex-1 py-2 text-sm rounded-2xl border border-rose-500 hover:bg-rose-950 text-rose-400 font-medium">Creuse</button>
+                            </div>
+                            <div class="text-[10px] text-center text-zinc-500 mt-2">Cliquez sur une forme pour changer</div>
+                        </div>
                     </div>
 
-                    <!-- Preview -->
-                    <div class="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-                        <div class="font-semibold mb-4">Aperçu du parcours</div>
-                        <div class="cnc-canvas rounded-2xl p-4 h-[380px] flex items-center justify-center relative overflow-hidden">
-                            <svg id="gcode-preview" width="100%" height="100%" viewBox="0 0 300 300" class="max-w-[280px]">
-                                <!-- Toolpath will be drawn by JS -->
-                            </svg>
-                            <div class="absolute bottom-4 right-4 text-xs bg-black/60 px-2 py-px rounded">Vue 2D</div>
+                    <!-- CANVAS INTERACTIF -->
+                    <div class="xl:col-span-7 bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
+                        <div class="flex justify-between items-center mb-3 px-2">
+                            <div class="font-semibold">Zone de dessin interactive <span class="text-xs text-zinc-500">(clic-glisser pour dessiner)</span></div>
+                            <div class="text-xs px-3 py-1 bg-zinc-800 rounded-full">Grille 5mm • Échelle 1:1</div>
                         </div>
-                        <div class="flex justify-between text-xs mt-4 text-zinc-400">
-                            <div>Longueur totale : <span class="font-mono text-white">184.6 mm</span></div>
-                            <div>Temps estimé : <span class="font-mono text-white">4m 12s</span></div>
+                        
+                        <div class="sketch-container rounded-2xl overflow-hidden border border-zinc-700">
+                            <canvas id="sketch-canvas" width="820" height="620" class="cnc-canvas sketch-grid"></canvas>
+                        </div>
+                        
+                        <div class="flex justify-between text-xs mt-3 px-2 text-zinc-400">
+                            <div>Clic gauche : dessiner / sélectionner</div>
+                            <div>Double-clic : supprimer la forme</div>
+                            <div id="mouse-coords" class="font-mono">X: 0 • Y: 0</div>
                         </div>
                     </div>
+
+                    <!-- PANNEAU PROPRIÉTÉS + LISTE -->
+                    <div class="xl:col-span-3 space-y-4">
+                        <!-- Propriétés de la forme sélectionnée -->
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                            <div class="font-semibold mb-4">Propriétés de la forme</div>
+                            
+                            <div id="properties-panel" class="space-y-4 text-sm">
+                                <div class="text-center text-zinc-500 py-4">Sélectionnez une forme pour éditer</div>
+                            </div>
+                        </div>
+
+                        <!-- Liste des formes -->
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex-1">
+                            <div class="font-semibold mb-3 flex justify-between items-center">
+                                <span>Formes dessinées</span>
+                                <span id="shape-count" class="text-xs bg-zinc-800 px-2 py-0.5 rounded-full">0</span>
+                            </div>
+                            <div id="shapes-list" class="space-y-2 text-sm max-h-[280px] overflow-auto pr-1">
+                                <!-- Dynamically populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- G-Code Output -->
+                <div class="mt-6 bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="font-semibold">G-Code généré</div>
+                        <button onclick="copyGCode()" class="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg flex items-center gap-x-1">
+                            <i class="fa-solid fa-copy"></i> <span>Copier</span>
+                        </button>
+                    </div>
+                    <textarea id="gcode-output" class="w-full h-36 bg-zinc-950 font-mono text-xs p-4 rounded-2xl border border-zinc-700 resize-y" readonly placeholder="Le G-Code apparaîtra ici après avoir cliqué sur 'Générer G-Code'"></textarea>
                 </div>
             </div>
 
@@ -399,54 +465,21 @@ M30 ; Fin de programme</textarea>
             <div id="tab-ai" class="tab-content hidden">
                 <div class="max-w-3xl">
                     <h1 class="font-display text-3xl tracking-tighter mb-2">Optimiseur IA</h1>
-                    <p class="text-zinc-400 mb-8">Décrivez la pièce ou chargez un G-Code. L'IA neurale va optimiser le parcours, réduire le temps et minimiser l'usure.</p>
+                    <p class="text-zinc-400 mb-8">Décrivez la pièce ou chargez un G-Code. L'IA neurale va optimiser le parcours.</p>
 
                     <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
                         <div class="mb-6">
-                            <label class="block text-sm mb-2 text-zinc-400">Description de la pièce ou objectif</label>
-                            <textarea id="ai-prompt" rows="3" class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl p-4 text-sm focus:outline-none focus:border-cyan-500" placeholder="Ex: Usiner une plaque de fixation en inox avec 4 trous M6 et un contour extérieur précis. Minimiser le temps tout en gardant une finition de surface Ra 1.6."></textarea>
+                            <label class="block text-sm mb-2 text-zinc-400">Description de la pièce</label>
+                            <textarea id="ai-prompt" rows="3" class="w-full bg-zinc-950 border border-zinc-700 rounded-2xl p-4 text-sm focus:outline-none focus:border-cyan-500" placeholder="Ex: Plaque de fixation avec 4 trous M6, contour extérieur et chanfreins 45° sur les arêtes."></textarea>
                         </div>
 
-                        <div class="flex items-center gap-x-4">
-                            <button onclick="runAIOptimization()" 
-                                    class="flex-1 py-3.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:brightness-110 transition-all text-white font-semibold rounded-2xl flex items-center justify-center gap-x-3">
-                                <i class="fa-solid fa-magic"></i>
-                                <span>Optimiser avec l'IA</span>
-                            </button>
-                            
-                            <button onclick="uploadGCodeForAI()" class="px-8 py-3.5 bg-zinc-800 hover:bg-zinc-700 rounded-2xl border border-zinc-700 flex items-center gap-x-2">
-                                <i class="fa-solid fa-upload"></i>
-                                <span>Charger G-Code existant</span>
-                            </button>
-                        </div>
+                        <button onclick="runAIOptimization()" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:brightness-110 transition-all text-white font-semibold rounded-2xl flex items-center justify-center gap-x-3">
+                            <i class="fa-solid fa-magic"></i>
+                            <span>Optimiser avec l'IA Neuronal</span>
+                        </button>
 
                         <div id="ai-results" class="hidden mt-8 pt-8 border-t border-zinc-800">
-                            <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
-                                <i class="fa-solid fa-check-double"></i>
-                                <span>Résultats de l'optimisation</span>
-                            </div>
-                            
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="bg-zinc-950 p-4 rounded-2xl">
-                                    <div class="text-xs text-zinc-500">TEMPS RÉDUIT</div>
-                                    <div class="text-3xl font-semibold text-emerald-400">-22%</div>
-                                </div>
-                                <div class="bg-zinc-950 p-4 rounded-2xl">
-                                    <div class="text-xs text-zinc-500">MATÉRIAU ÉCONOMISÉ</div>
-                                    <div class="text-3xl font-semibold text-emerald-400">-31%</div>
-                                </div>
-                                <div class="bg-zinc-950 p-4 rounded-2xl">
-                                    <div class="text-xs text-zinc-500">PRÉCISION</div>
-                                    <div class="text-3xl font-semibold">99.7%</div>
-                                </div>
-                            </div>
-
-                            <div class="mt-6">
-                                <button onclick="applyOptimizedPath()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-2xl font-semibold flex items-center justify-center gap-x-2">
-                                    <i class="fa-solid fa-check"></i>
-                                    <span>Appliquer le parcours optimisé</span>
-                                </button>
-                            </div>
+                            <!-- Populated by JS -->
                         </div>
                     </div>
                 </div>
@@ -457,7 +490,6 @@ M30 ; Fin de programme</textarea>
                 <h1 class="font-display text-3xl tracking-tighter mb-6">Moniteur Live</h1>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <!-- Live Viewer -->
                     <div class="lg:col-span-3 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
                         <div class="flex justify-between mb-4">
                             <div class="font-semibold">Visualisation en temps réel</div>
@@ -468,15 +500,12 @@ M30 ; Fin de programme</textarea>
                         
                         <div class="cnc-canvas rounded-2xl h-[380px] relative flex items-center justify-center">
                             <canvas id="live-canvas" width="520" height="380" class="rounded-2xl"></canvas>
-                            <div class="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-xl text-xs font-mono">X: <span id="live-x">124.8</span> • Y: <span id="live-y">87.3</span> • Z: <span id="live-z">12.1</span></div>
                         </div>
                     </div>
 
-                    <!-- Live Metrics -->
                     <div class="lg:col-span-2 space-y-6">
                         <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
                             <div class="font-semibold mb-4">Paramètres actuels</div>
-                            
                             <div class="space-y-5">
                                 <div>
                                     <div class="flex justify-between text-sm mb-1.5">
@@ -487,15 +516,6 @@ M30 ; Fin de programme</textarea>
                                         <div class="h-2 bg-cyan-400 w-[78%] rounded-full"></div>
                                     </div>
                                 </div>
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1.5">
-                                        <span>Avance (Feed rate)</span>
-                                        <span class="font-mono">850 <span class="text-xs text-zinc-400">mm/min</span></span>
-                                    </div>
-                                    <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                        <div class="h-2 bg-cyan-400 w-[65%] rounded-full"></div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -503,8 +523,6 @@ M30 ; Fin de programme</textarea>
                             <div class="font-semibold mb-4">Logs IA</div>
                             <div class="font-mono text-xs bg-zinc-950 p-4 rounded-2xl h-48 overflow-auto text-emerald-300 space-y-1" id="ai-logs">
                                 <div>[14:28:11] Optimisation terminée</div>
-                                <div>[14:28:09] Prédiction usure outil: faible</div>
-                                <div>[14:27:55] Ajustement feed rate +12%</div>
                             </div>
                         </div>
                     </div>
@@ -515,220 +533,510 @@ M30 ; Fin de programme</textarea>
     </div>
 
     <script>
-        // Tailwind script
+        // Tailwind init
         function initializeTailwind() {
-            document.documentElement.style.setProperty('--accent', '#22d3ee');
+            // Already handled by CDN
         }
 
         // Tab switching
         function switchTab(tab) {
-            // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            // Show selected
             document.getElementById('tab-' + tab).classList.remove('hidden');
 
-            // Update sidebar active state
             document.querySelectorAll('.sidebar-link').forEach(el => {
                 el.classList.remove('nav-active');
-                if (el.getAttribute('data-sidebar') === tab) {
-                    el.classList.add('nav-active');
-                }
+                if (el.getAttribute('data-sidebar') === tab) el.classList.add('nav-active');
             });
 
-            // Update top nav active
             document.querySelectorAll('.tab-btn').forEach(el => {
                 el.classList.remove('active', 'bg-zinc-800');
-                if (el.getAttribute('data-tab') === tab) {
-                    el.classList.add('active', 'bg-zinc-800');
-                }
+                if (el.getAttribute('data-tab') === tab) el.classList.add('active', 'bg-zinc-800');
             });
 
-            // Special init for live monitor
             if (tab === 'monitor') {
                 setTimeout(initLiveCanvas, 100);
             }
         }
 
-        // Simple G-Code preview (SVG)
-        function drawGCodePreview() {
-            const svg = document.getElementById('gcode-preview');
-            if (!svg) return;
-            
-            svg.innerHTML = '';
-            
-            // Simple rectangle toolpath
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute('d', 'M 50 50 L 250 50 L 250 250 L 50 250 L 50 50');
-            path.setAttribute('class', 'toolpath');
-            path.setAttribute('stroke', '#22d3ee');
-            path.setAttribute('stroke-width', '3');
-            
-            // Add some inner paths
-            const path2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path2.setAttribute('d', 'M 80 80 L 220 80 L 220 220 L 80 220 L 80 80');
-            path2.setAttribute('class', 'toolpath');
-            path2.setAttribute('stroke', '#67e8f9');
-            path2.setAttribute('stroke-width', '2');
-            path2.setAttribute('stroke-dasharray', '4 3');
-            
-            svg.appendChild(path);
-            svg.appendChild(path2);
+        // ==================== INTERACTIVE SKETCHER ====================
+        let canvas, ctx;
+        let shapes = [];
+        let currentTool = 'select';
+        let currentZoneType = 'plein';
+        let selectedShapeIndex = -1;
+        let isDrawing = false;
+        let startX = 0, startY = 0;
 
-            // Add start/end points
-            const start = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            start.setAttribute('cx', '50');
-            start.setAttribute('cy', '50');
-            start.setAttribute('r', '5');
-            start.setAttribute('fill', '#22d3ee');
-            svg.appendChild(start);
+        function initSketchCanvas() {
+            canvas = document.getElementById('sketch-canvas');
+            ctx = canvas.getContext('2d');
+
+            // Mouse events
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('dblclick', handleDoubleClick);
+            canvas.addEventListener('mousemove', updateMouseCoords);
+
+            // Initial draw
+            drawSketch();
+            updateShapesList();
         }
 
-        function loadSampleGCode() {
-            const editor = document.getElementById('gcode-editor');
-            editor.value = `G21
-G90
-G00 X0 Y0 Z10
-G01 Z-3 F200
-G01 X120 Y0 F1200
-G01 X120 Y80
-G01 X0 Y80
-G01 X0 Y0
-G00 Z10
-G01 Z-3 F200
-G01 X40 Y20
-G01 X80 Y20
-G01 X80 Y60
-G01 X40 Y60
-G01 X40 Y20
-G00 Z10
-M30`;
-            drawGCodePreview();
+        function updateMouseCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / 2) * 2; // Snap to grid
+            const y = Math.round((e.clientY - rect.top) / 2) * 2;
+            document.getElementById('mouse-coords').innerHTML = `X: ${x} • Y: ${y}`;
         }
 
-        // AI Optimization simulation
-        function runAIOptimization() {
-            const prompt = document.getElementById('ai-prompt').value || "Pièce standard avec optimisation neurale";
-            const results = document.getElementById('ai-results');
+        function setTool(tool) {
+            currentTool = tool;
             
-            results.classList.remove('hidden');
-            results.scrollIntoView({ behavior: 'smooth' });
-            
-            // Fake loading effect
-            results.innerHTML = `
-                <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
-                    <i class="fa-solid fa-spinner fa-spin"></i>
-                    <span>Analyse en cours par le modèle neuronal...</span>
-                </div>
-            `;
-
-            setTimeout(() => {
-                results.innerHTML = `
-                    <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
-                        <i class="fa-solid fa-check-double"></i>
-                        <span>Résultats de l'optimisation IA</span>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-4 mb-6">
-                        <div class="bg-zinc-950 p-4 rounded-2xl">
-                            <div class="text-xs text-zinc-500">TEMPS RÉDUIT</div>
-                            <div class="text-3xl font-semibold text-emerald-400">-22%</div>
-                        </div>
-                        <div class="bg-zinc-950 p-4 rounded-2xl">
-                            <div class="text-xs text-zinc-500">MATÉRIAU ÉCONOMISÉ</div>
-                            <div class="text-3xl font-semibold text-emerald-400">-31%</div>
-                        </div>
-                        <div class="bg-zinc-950 p-4 rounded-2xl">
-                            <div class="text-xs text-zinc-500">PRÉCISION</div>
-                            <div class="text-3xl font-semibold">99.7%</div>
-                        </div>
-                    </div>
-
-                    <div class="bg-zinc-950 p-4 rounded-2xl text-sm mb-6">
-                        <strong>Recommandation IA :</strong> Le modèle a détecté un parcours optimal avec 3 passes de finition et réduction des déplacements rapides. Gain estimé : 4 minutes 18 secondes.
-                    </div>
-
-                    <button onclick="applyOptimizedPath()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-2xl font-semibold flex items-center justify-center gap-x-2">
-                        <i class="fa-solid fa-check"></i>
-                        <span>Appliquer le parcours optimisé au G-Code</span>
-                    </button>
-                `;
-            }, 1650);
+            // Update button styles
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active', 'border-cyan-400'));
+            const activeBtn = document.getElementById('tool-' + tool);
+            if (activeBtn) activeBtn.classList.add('active', 'border-cyan-400');
         }
 
-        function applyOptimizedPath() {
-            alert('Parcours optimisé appliqué avec succès ! Le G-Code a été mis à jour dans l\'éditeur.');
-            // Switch to editor and update
-            switchTab('editor');
-            setTimeout(() => {
-                const editor = document.getElementById('gcode-editor');
-                editor.value = editor.value + `
+        function setZoneType(type) {
+            currentZoneType = type;
+            
+            document.getElementById('zone-plein').classList.toggle('border-blue-500', type === 'plein');
+            document.getElementById('zone-plein').classList.toggle('bg-blue-950', type === 'plein');
+            document.getElementById('zone-plein').classList.toggle('text-blue-400', type === 'plein');
+            
+            document.getElementById('zone-creuse').classList.toggle('border-rose-500', type === 'creuse');
+            document.getElementById('zone-creuse').classList.toggle('bg-rose-950', type === 'creuse');
+            document.getElementById('zone-creuse').classList.toggle('text-rose-400', type === 'creuse');
 
-; === OPTIMISÉ PAR IA NEURALE ===
-; Temps réduit de 22% | Matériau économisé 31%
-G01 X50 Y50 F950 ; Ajustement IA
-`;
-                drawGCodePreview();
-            }, 600);
+            if (selectedShapeIndex !== -1) {
+                shapes[selectedShapeIndex].type = type;
+                drawSketch();
+                updateShapesList();
+            }
         }
 
-        function uploadGCodeForAI() {
-            alert('Fonctionnalité d\'upload de G-Code pour optimisation IA activée. (Simulation)');
-            switchTab('editor');
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / 2) * 2;
+            const y = Math.round((e.clientY - rect.top) / 2) * 2;
+
+            if (currentTool === 'select') {
+                // Select shape
+                selectedShapeIndex = getShapeAt(x, y);
+                if (selectedShapeIndex !== -1) {
+                    showPropertiesPanel(selectedShapeIndex);
+                } else {
+                    document.getElementById('properties-panel').innerHTML = `<div class="text-center text-zinc-500 py-4">Sélectionnez une forme pour éditer</div>`;
+                }
+                drawSketch();
+                return;
+            }
+
+            if (currentTool === 'dimension') {
+                // Simple dimension tool (click two points)
+                if (!window.dimStart) {
+                    window.dimStart = {x, y};
+                } else {
+                    addDimension(window.dimStart.x, window.dimStart.y, x, y);
+                    window.dimStart = null;
+                }
+                return;
+            }
+
+            // Start drawing new shape
+            isDrawing = true;
+            startX = x;
+            startY = y;
         }
 
-        // Live canvas simulation
-        let liveInterval;
-        function initLiveCanvas() {
-            const canvas = document.getElementById('live-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#111827';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw grid
+        function handleMouseMove(e) {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / 2) * 2;
+            const y = Math.round((e.clientY - rect.top) / 2) * 2;
+
+            drawSketch(); // Redraw base
+
+            // Preview current shape
+            ctx.strokeStyle = currentZoneType === 'plein' ? '#3b82f6' : '#e11d48';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+
+            if (currentTool === 'rectangle') {
+                const w = x - startX;
+                const h = y - startY;
+                ctx.strokeRect(startX, startY, w, h);
+            } 
+            else if (currentTool === 'circle') {
+                const radius = Math.hypot(x - startX, y - startY);
+                ctx.beginPath();
+                ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
+        function handleMouseUp(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / 2) * 2;
+            const y = Math.round((e.clientY - rect.top) / 2) * 2;
+
+            let newShape = null;
+
+            if (currentTool === 'rectangle') {
+                const w = Math.abs(x - startX);
+                const h = Math.abs(y - startY);
+                if (w > 10 && h > 10) {
+                    newShape = {
+                        id: Date.now(),
+                        type: currentZoneType,
+                        shape: 'rectangle',
+                        x: Math.min(startX, x),
+                        y: Math.min(startY, y),
+                        width: w,
+                        height: h,
+                        label: `Rect ${shapes.length + 1}`
+                    };
+                }
+            } 
+            else if (currentTool === 'circle') {
+                const radius = Math.hypot(x - startX, y - startY);
+                if (radius > 8) {
+                    newShape = {
+                        id: Date.now(),
+                        type: currentZoneType,
+                        shape: 'circle',
+                        x: startX,
+                        y: startY,
+                        radius: radius,
+                        label: `Cercle ${shapes.length + 1}`
+                    };
+                }
+            }
+
+            if (newShape) {
+                shapes.push(newShape);
+                selectedShapeIndex = shapes.length - 1;
+                drawSketch();
+                updateShapesList();
+                showPropertiesPanel(selectedShapeIndex);
+            }
+        }
+
+        function handleDoubleClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / 2) * 2;
+            const y = Math.round((e.clientY - rect.top) / 2) * 2;
+
+            const index = getShapeAt(x, y);
+            if (index !== -1) {
+                shapes.splice(index, 1);
+                selectedShapeIndex = -1;
+                drawSketch();
+                updateShapesList();
+                document.getElementById('properties-panel').innerHTML = `<div class="text-center text-zinc-500 py-4">Sélectionnez une forme pour éditer</div>`;
+            }
+        }
+
+        function getShapeAt(x, y) {
+            for (let i = shapes.length - 1; i >= 0; i--) {
+                const s = shapes[i];
+                if (s.shape === 'rectangle') {
+                    if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) return i;
+                } else if (s.shape === 'circle') {
+                    const dist = Math.hypot(x - s.x, y - s.y);
+                    if (dist <= s.radius) return i;
+                }
+            }
+            return -1;
+        }
+
+        function drawSketch() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Grid (already in CSS, but reinforce)
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 40) {
+            for (let x = 0; x < canvas.width; x += 20) {
                 ctx.beginPath();
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, canvas.height);
                 ctx.stroke();
             }
-            for (let y = 0; y < canvas.height; y += 40) {
+            for (let y = 0; y < canvas.height; y += 20) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(canvas.width, y);
                 ctx.stroke();
             }
 
-            // Tool head
-            let x = 180;
-            let y = 140;
-            let direction = 1;
+            // Draw shapes
+            shapes.forEach((shape, index) => {
+                ctx.strokeStyle = shape.type === 'plein' ? '#3b82f6' : '#e11d48';
+                ctx.fillStyle = shape.type === 'plein' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(225, 29, 72, 0.15)';
+                ctx.lineWidth = (index === selectedShapeIndex) ? 3 : 2;
 
-            if (liveInterval) clearInterval(liveInterval);
+                if (shape.shape === 'rectangle') {
+                    ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+                    ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                } else if (shape.shape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
-            liveInterval = setInterval(() => {
-                ctx.fillStyle = '#111827';
+                // Label
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '12px Inter';
+                ctx.fillText(shape.label, shape.x + 5, shape.y + 15);
+            });
+
+            // Draw dimensions if any
+            if (window.dimensions) {
+                window.dimensions.forEach(dim => {
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(dim.x1, dim.y1);
+                    ctx.lineTo(dim.x2, dim.y2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Label
+                    const midX = (dim.x1 + dim.x2) / 2;
+                    const midY = (dim.y1 + dim.y2) / 2;
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.font = '11px Inter';
+                    ctx.fillText(dim.length + ' mm', midX + 5, midY - 5);
+                });
+            }
+        }
+
+        function addDimension(x1, y1, x2, y2) {
+            if (!window.dimensions) window.dimensions = [];
+            
+            const length = Math.round(Math.hypot(x2 - x1, y2 - y1));
+            window.dimensions.push({x1, y1, x2, y2, length});
+            
+            drawSketch();
+        }
+
+        function showPropertiesPanel(index) {
+            const shape = shapes[index];
+            const panel = document.getElementById('properties-panel');
+            
+            let html = `
+                <div class="mb-3">
+                    <div class="text-xs text-zinc-500">Type</div>
+                    <div class="font-semibold">${shape.shape} — ${shape.type}</div>
+                </div>
+            `;
+
+            if (shape.shape === 'rectangle') {
+                html += `
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-zinc-500">Largeur (mm)</label>
+                            <input type="number" value="${shape.width}" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1 text-sm" 
+                                   onchange="updateShapeProperty(${index}, 'width', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-zinc-500">Hauteur (mm)</label>
+                            <input type="number" value="${shape.height}" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1 text-sm"
+                                   onchange="updateShapeProperty(${index}, 'height', this.value)">
+                        </div>
+                    </div>
+                `;
+            } else if (shape.shape === 'circle') {
+                html += `
+                    <div>
+                        <label class="text-xs text-zinc-500">Rayon (mm)</label>
+                        <input type="number" value="${shape.radius}" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1 text-sm"
+                               onchange="updateShapeProperty(${index}, 'radius', this.value)">
+                    </div>
+                `;
+            }
+
+            html += `<div class="mt-4">
+                <label class="text-xs text-zinc-500">Label</label>
+                <input type="text" value="${shape.label}" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1 text-sm" 
+                       onchange="updateShapeProperty(${index}, 'label', this.value)">
+            </div>`;
+
+            panel.innerHTML = html;
+        }
+
+        function updateShapeProperty(index, prop, value) {
+            shapes[index][prop] = parseFloat(value) || value;
+            drawSketch();
+            updateShapesList();
+        }
+
+        function updateShapesList() {
+            const container = document.getElementById('shapes-list');
+            const countEl = document.getElementById('shape-count');
+            
+            container.innerHTML = '';
+            countEl.textContent = shapes.length;
+
+            shapes.forEach((shape, index) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2 rounded-xl cursor-pointer text-sm ${index === selectedShapeIndex ? 'bg-zinc-800' : 'hover:bg-zinc-800'}`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-x-2">
+                        <i class="fa-solid ${shape.shape === 'rectangle' ? 'fa-square' : 'fa-circle'} text-xs ${shape.type === 'plein' ? 'text-blue-400' : 'text-rose-400'}"></i>
+                        <span>${shape.label}</span>
+                    </div>
+                    <div class="text-xs text-zinc-500">${shape.type}</div>
+                `;
+                div.onclick = () => {
+                    selectedShapeIndex = index;
+                    drawSketch();
+                    showPropertiesPanel(index);
+                    updateShapesList();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function clearSketch() {
+            shapes = [];
+            if (window.dimensions) window.dimensions = [];
+            selectedShapeIndex = -1;
+            document.getElementById('properties-panel').innerHTML = `<div class="text-center text-zinc-500 py-4">Sélectionnez une forme pour éditer</div>`;
+            document.getElementById('gcode-output').value = '';
+            drawSketch();
+            updateShapesList();
+        }
+
+        function generateGCodeFromSketch() {
+            if (shapes.length === 0) {
+                alert('Dessinez d\'abord des formes !');
+                return;
+            }
+
+            let gcode = `; Neural-CNC - Pièce générée automatiquement
+G21 ; mm
+G90 ; absolu
+G00 Z5
+`;
+
+            shapes.forEach((shape, i) => {
+                gcode += `; --- Forme ${i+1}: ${shape.label} (${shape.type}) ---
+`;
+
+                if (shape.shape === 'rectangle') {
+                    const depth = shape.type === 'creuse' ? -3 : -1; // simple depth
+                    gcode += `G00 X${shape.x} Y${shape.y}
+`;
+                    gcode += `G01 Z${depth} F200
+`;
+                    gcode += `G01 X${shape.x + shape.width} Y${shape.y} F800
+`;
+                    gcode += `G01 X${shape.x + shape.width} Y${shape.y + shape.height}
+`;
+                    gcode += `G01 X${shape.x} Y${shape.y + shape.height}
+`;
+                    gcode += `G01 X${shape.x} Y${shape.y}
+`;
+                    gcode += `G00 Z5
+`;
+                } else if (shape.shape === 'circle') {
+                    const depth = shape.type === 'creuse' ? -3 : -1;
+                    gcode += `G00 X${shape.x} Y${shape.y - shape.radius}
+`;
+                    gcode += `G01 Z${depth} F200
+`;
+                    gcode += `G02 X${shape.x} Y${shape.y - shape.radius} I0 J${shape.radius} F600 ; Cercle
+`;
+                    gcode += `G00 Z5
+`;
+                }
+            });
+
+            gcode += `M30 ; Fin
+`;
+            document.getElementById('gcode-output').value = gcode;
+
+            // Also update the old editor if needed
+            const oldEditor = document.getElementById('gcode-editor');
+            if (oldEditor) oldEditor.value = gcode;
+        }
+
+        function updateShapeFromInput() {
+            // Handled by onchange in showPropertiesPanel
+        }
+
+        // ==================== END SKETCHER ====================
+
+        function loadSampleGCode() {
+            // Legacy - kept for compatibility
+            const editor = document.getElementById('gcode-editor');
+            if (editor) {
+                editor.value = `G21
+G90
+G00 X0 Y0 Z10
+...`;
+            }
+        }
+
+        function runAIOptimization() {
+            const prompt = document.getElementById('ai-prompt').value || "Pièce mécanique optimisée par IA";
+            const resultsDiv = document.getElementById('ai-results');
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.innerHTML = `<div class="text-emerald-400 flex items-center gap-x-2"><i class="fa-solid fa-spinner fa-spin"></i> Analyse neurale en cours...</div>`;
+
+            setTimeout(() => {
+                resultsDiv.innerHTML = `
+                    <div class="font-semibold mb-4 flex items-center gap-x-2 text-emerald-400">
+                        <i class="fa-solid fa-check-double"></i> <span>Résultats IA</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-zinc-950 p-4 rounded-2xl"><div class="text-xs text-zinc-500">TEMPS RÉDUIT</div><div class="text-3xl font-semibold text-emerald-400">-24%</div></div>
+                        <div class="bg-zinc-950 p-4 rounded-2xl"><div class="text-xs text-zinc-500">MATÉRIAU ÉCONOMISÉ</div><div class="text-3xl font-semibold text-emerald-400">-29%</div></div>
+                        <div class="bg-zinc-950 p-4 rounded-2xl"><div class="text-xs text-zinc-500">PRÉCISION</div><div class="text-3xl font-semibold">99.6%</div></div>
+                    </div>
+                    <button onclick="applyOptimizedPath()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold flex items-center justify-center gap-x-2">
+                        Appliquer l\'optimisation
+                    </button>
+                `;
+            }, 1400);
+        }
+
+        function applyOptimizedPath() {
+            alert('Optimisation appliquée à la pièce !');
+            switchTab('editor');
+        }
+
+        function simulateRun() {
+            alert('Simulation d\'usinage démarrée');
+            switchTab('monitor');
+        }
+
+        function initLiveCanvas() {
+            const canvas = document.getElementById('live-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            let x = 180, y = 140, dir = 1;
+            
+            setInterval(() => {
+                ctx.fillStyle = '#0f172a';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Redraw grid
+                
                 ctx.strokeStyle = '#334155';
-                for (let gx = 0; gx < canvas.width; gx += 40) {
-                    ctx.beginPath();
-                    ctx.moveTo(gx, 0);
-                    ctx.lineTo(gx, canvas.height);
-                    ctx.stroke();
-                }
-                for (let gy = 0; gy < canvas.height; gy += 40) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, gy);
-                    ctx.lineTo(canvas.width, gy);
-                    ctx.stroke();
-                }
+                ctx.lineWidth = 1;
+                for (let gx = 0; gx < canvas.width; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
+                for (let gy = 0; gy < canvas.height; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
 
-                // Draw toolpath trail
                 ctx.strokeStyle = '#22d3ee';
                 ctx.lineWidth = 2.5;
                 ctx.beginPath();
@@ -736,80 +1044,52 @@ G01 X50 Y50 F950 ; Ajustement IA
                 ctx.lineTo(x, y);
                 ctx.stroke();
 
-                // Tool head
                 ctx.fillStyle = '#22d3ee';
                 ctx.beginPath();
                 ctx.arc(x, y, 7, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.fillStyle = '#67e8f9';
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Update position display
                 document.getElementById('live-x').innerText = (x / 3.2).toFixed(1);
                 document.getElementById('live-y').innerText = (y / 3.2).toFixed(1);
                 document.getElementById('live-z').innerText = (12 + Math.sin(Date.now()/800) * 1.5).toFixed(1);
 
-                // Move
-                x += direction * 1.8;
-                if (x > 380) {
-                    x = 380;
-                    direction = -1;
-                }
-                if (x < 140) {
-                    x = 140;
-                    direction = 1;
-                }
-
-                // Random small Y variation
+                x += dir * 1.8;
+                if (x > 380 || x < 140) dir *= -1;
                 y += (Math.random() - 0.5) * 1.2;
-                y = Math.max(80, Math.min(y, 280));
             }, 80);
         }
 
-        function simulateRun() {
-            const btns = document.querySelectorAll('button');
-            alert('Simulation d\'usinage démarrée. Passage en mode Moniteur Live...');
-            switchTab('monitor');
-            setTimeout(() => {
-                const logs = document.getElementById('ai-logs');
-                if (logs) {
-                    logs.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Usinage démarré par IA</div>`;
-                }
-            }, 800);
+        function copyGCode() {
+            const ta = document.getElementById('gcode-output');
+            ta.select();
+            document.execCommand('copy');
+            alert('G-Code copié dans le presse-papiers !');
         }
 
-        // Initialize everything
         function initApp() {
             initializeTailwind();
+            initSketchCanvas();
             
-            // Initial active tab
-            document.getElementById('tab-dashboard').classList.remove('hidden');
+            // Default active tab
+            document.getElementById('tab-editor').classList.remove('hidden');
             
-            // Initial sidebar active
-            const firstSidebar = document.querySelector('.sidebar-link');
-            if (firstSidebar) firstSidebar.classList.add('nav-active');
+            // Default tool
+            setTool('rectangle');
+            setZoneType('plein');
 
-            // Draw initial G-Code preview
+            // Demo shapes
             setTimeout(() => {
-                drawGCodePreview();
-            }, 300);
+                shapes = [
+                    { id: 1, type: 'plein', shape: 'rectangle', x: 120, y: 80, width: 280, height: 180, label: 'Corps principal' },
+                    { id: 2, type: 'creuse', shape: 'circle', x: 260, y: 170, radius: 45, label: 'Trou central' }
+                ];
+                drawSketch();
+                updateShapesList();
+            }, 600);
 
-            // Keyboard shortcuts hint
-            console.log('%c[Neural-CNC] Interface IA CNC initialisée. Raccourcis : Ctrl+K pour recherche, etc.', 'color:#64748b');
-
-            // Demo: Auto update some metrics (optional)
-            setInterval(() => {
-                const metrics = document.querySelectorAll('.metric-value');
-                if (metrics.length > 0 && !document.getElementById('tab-monitor').classList.contains('hidden')) {
-                    // Could add live updates here
-                }
-            }, 5000);
+            console.log('%c[Neural-CNC] Éditeur interactif avec sketcher chargé.', 'color:#64748b');
         }
 
-        // Boot
         window.onload = initApp;
     </script>
 </body>
